@@ -214,3 +214,81 @@ class L1WeightDecay(NullDataSpecsMixin, Cost):
     @wraps(Cost.is_stochastic)
     def is_stochastic(self):
         return False
+
+
+class FusedLasso(NullDataSpecsMixin, Cost):
+    """Fused Lasso regularization cost for MLP.
+
+    coeff * sum(abs(diff(weights))) for each set of weights.
+
+    Parameters
+    ----------
+    coeffs : dict
+        Dictionary with layer names as its keys,
+        specifying the coefficient to multiply
+        with the cost defined by the fused lasso norm of the weights for
+        each layer.
+
+        Each element may in turn be a list, e.g., for CompositeLayers.
+    """
+
+    def __init__(self, coeffs):
+        self.__dict__.update(locals())
+        del self.self
+
+    def expr(self, model, data, ** kwargs):
+        """Returns a theano expression for the cost function.
+
+        Parameters
+        ----------
+        model : MLP
+        data : tuple
+            Should be a valid occupant of
+            CompositeSpace(model.get_input_space(),
+            model.get_output_space())
+
+        Returns
+        -------
+        total_cost : theano.gof.Variable
+            coeff * sum(abs(diff(weights)))
+            added up for each set of weights.
+        """
+
+        assert T.scalar() != 0.  # make sure theano semantics do what I want
+        self.get_data_specs(model)[0].validate(data)
+        if isinstance(self.coeffs, list):
+            warnings.warn("Coefficients should be given as a dictionary "
+                          "with layer names as key. The support of "
+                          "coefficients as list would be deprecated "
+                          "from 03/06/2015")
+            layer_costs = [layer.get_fused_lasso(coeff)
+                           for layer, coeff in safe_izip(model.layers,
+                                                         self.coeffs)]
+            layer_costs = [cost for cost in layer_costs if cost != 0.]
+
+        else:
+            layer_costs = []
+            for layer in model.layers:
+                layer_name = layer.layer_name
+                if layer_name in self.coeffs:
+                    cost = layer.get_fused_lasso(self.coeffs[layer_name])
+                    if cost != 0.:
+                        layer_costs.append(cost)
+
+        if len(layer_costs) == 0:
+            rval = T.constant(0., dtype=theano.config.floatX)
+            rval.name = '0_fused_lasso'
+            return rval
+        else:
+            total_cost = reduce(operator.add, layer_costs)
+        total_cost.name = 'MLP_FusedLasso'
+
+        assert total_cost.ndim == 0
+
+        total_cost.name = 'fused_lasso'
+
+        return total_cost
+
+    @wraps(Cost.is_stochastic)
+    def is_stochastic(self):
+        return False

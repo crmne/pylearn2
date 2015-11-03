@@ -359,6 +359,31 @@ class Layer(Model):
         raise NotImplementedError(
             str(type(self)) + " does not implement get_l1_weight_decay.")
 
+    def get_fused_lasso(self, coeff):
+        """
+        Provides an expression for an fused lasso penalty on the weights.
+
+        Parameters
+        ----------
+        coeff : float or tuple
+            The coefficient on the fused lasso penalty for this layer.
+            This docstring is provided by the Layer base class. Individual
+            Layer subclasses should add their own docstring explaining the
+            format of `coeff` for that particular layer. For most ordinary
+            layers, `coeff` is a single float to multiply by the weight
+            decay term. Layers containing many pieces may take a tuple or
+            nested tuple of floats, and should explain the semantics of
+            the different elements of the tuple.
+
+        Returns
+        -------
+        weight_decay : theano.gof.Variable
+            An expression for the fused lasso penalty term for this
+            layer.
+        """
+        raise NotImplementedError(
+            str(type(self)) + " does not implement get_fused_lasso.")
+
     def set_input_space(self, space):
         """
         Tells the layer to prepare for input formatted according to the
@@ -713,6 +738,25 @@ class MLP(Layer):
         for layer, coeff in safe_izip(self.layers, coeffs):
             if coeff != 0.:
                 layer_costs += [layer.get_l1_weight_decay(coeff)]
+
+        if len(layer_costs) == 0:
+            return T.constant(0, dtype=config.floatX)
+
+        total_cost = reduce(operator.add, layer_costs)
+
+        return total_cost
+
+    @wraps(Layer.get_fused_lasso)
+    def get_fused_lasso(self, coeffs):
+
+        # check the case where coeffs is a scalar
+        if not hasattr(coeffs, '__iter__'):
+            coeffs = [coeffs] * len(self.layers)
+
+        layer_costs = []
+        for layer, coeff in safe_izip(self.layers, coeffs):
+            if coeff != 0.:
+                layer_costs += [layer.get_fused_lasso(coeff)]
 
         if len(layer_costs) == 0:
             return T.constant(0, dtype=config.floatX)
@@ -1487,6 +1531,15 @@ class Softmax(Layer):
         W = self.W
         return coeff * abs(W).sum()
 
+    @wraps(Layer.get_fused_lasso)
+    def get_fused_lasso(self, coeff):
+
+        if isinstance(coeff, str):
+            coeff = float(coeff)
+        assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
+        W = self.W
+        return coeff * abs(np.diff(W)).sum()
+
     @wraps(Layer._modify_updates)
     def _modify_updates(self, updates):
 
@@ -2075,6 +2128,15 @@ class Linear(Layer):
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
         return coeff * abs(W).sum()
+
+    @wraps(Layer.get_fused_lasso)
+    def get_fused_lasso(self, coeff):
+
+        if isinstance(coeff, str):
+            coeff = float(coeff)
+        assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
+        W, = self.transformer.get_params()
+        return coeff * abs(np.diff(W)).sum()
 
     @wraps(Layer.get_weights)
     def get_weights(self):
@@ -3168,6 +3230,15 @@ class ConvElemwise(Layer):
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
         return coeff * abs(W).sum()
+
+    @wraps(Layer.get_fused_lasso)
+    def get_fused_lasso(self, coeff):
+
+        if isinstance(coeff, str):
+            coeff = float(coeff)
+        assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
+        W, = self.transformer.get_params()
+        return coeff * abs(np.diff(W)).sum()
 
     @wraps(Layer.set_weights)
     def set_weights(self, weights):
@@ -4288,6 +4359,29 @@ class CompositeLayer(Layer):
         """
         return self._weight_decay_aggregate('get_l1_weight_decay', coeff)
 
+    def get_fused_lasso(self, coeff):
+        """
+        Provides an expression for the fused lasso penalty on the weights,
+        which is the weighted sum of the fused lasso penalties of the layer
+        components.
+
+        Parameters
+        ----------
+        coeff : float or tuple/list
+            The coefficient on the fused lasso penalties for this layer.
+            If a single value is provided, this coefficient is used for
+            each component layer. If a list of tuple of coefficients is
+            given they are passed on to the component layers in the
+            given order.
+
+        Returns
+        -------
+        weight_decay : theano.gof.Variable
+            An expression for the fused lasso penalty term for this
+            layer.
+        """
+        return self._weight_decay_aggregate('get_fused_lasso', coeff)
+
     @wraps(Layer.cost)
     def cost(self, Y, Y_hat):
         return sum(layer.cost(Y_elem, Y_hat_elem)
@@ -4428,6 +4522,10 @@ class FlattenerLayer(Layer):
     @wraps(Layer.get_l1_weight_decay)
     def get_l1_weight_decay(self, coeffs):
         return self.raw_layer.get_l1_weight_decay(coeffs)
+
+    @wraps(Layer.get_fused_lasso)
+    def get_fused_lasso(self, coeffs):
+        return self.raw_layer.get_fused_lasso(coeffs)
 
     @wraps(Layer.set_batch_size)
     def set_batch_size(self, batch_size):
