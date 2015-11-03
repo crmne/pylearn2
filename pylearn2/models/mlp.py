@@ -1538,7 +1538,7 @@ class Softmax(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W = self.W
-        return coeff * abs(np.diff(W)).sum()
+        return coeff * abs(T.extra_ops.diff(W)).sum()
 
     @wraps(Layer._modify_updates)
     def _modify_updates(self, updates):
@@ -2136,7 +2136,7 @@ class Linear(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
-        return coeff * abs(np.diff(W)).sum()
+        return coeff * abs(T.extra_ops.diff(W)).sum()
 
     @wraps(Layer.get_weights)
     def get_weights(self):
@@ -3238,7 +3238,7 @@ class ConvElemwise(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
-        return coeff * abs(np.diff(W)).sum()
+        return coeff * abs(T.extra_ops.diff(W)).sum()
 
     @wraps(Layer.set_weights)
     def set_weights(self, weights):
