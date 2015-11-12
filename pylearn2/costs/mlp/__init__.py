@@ -232,6 +232,34 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         Each element may in turn be a list, e.g., for CompositeLayers.
     """
 
+    @staticmethod
+    def diff_operator(W):
+        import numpy as np
+        nfilters, _, wrows, wcols = W.get_value().shape
+
+        # construct finite difference matrix
+        D_firstcol = np.zeros(wcols)
+        D_firstcol[0] = -1
+
+        D_firstrow = np.zeros(wrows)
+        D_firstrow[0] = -1
+        D_firstrow[1] = 1
+
+        import scipy.linalg
+        D = scipy.linalg.toeplitz(D_firstcol, D_firstrow)[:, 1:wcols]
+
+        def fn(Wt, D):
+            """The function to be passed to theano.map.
+
+            The order of the parameters is fixed by scan: the output of the
+            prior call to fn (or the initial value, initially) is the first
+            parameter, followed by all non-sequences."""
+            return T.dot(Wt[0], D).reshape((1, wrows, wcols - 1))
+
+        return theano.map(fn=fn,
+                          sequences=W,
+                          non_sequences=D)[0]
+
     def __init__(self, coeffs):
         self.__dict__.update(locals())
         del self.self

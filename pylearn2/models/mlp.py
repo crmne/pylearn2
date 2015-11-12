@@ -14,7 +14,6 @@ import sys
 import warnings
 
 import numpy as np
-from theano.compat import six
 from theano.compat.six.moves import reduce, xrange
 from theano import config
 from theano.gof.op import get_debug_values
@@ -26,6 +25,7 @@ import theano.tensor as T
 
 from pylearn2.compat import OrderedDict
 from pylearn2.costs.mlp import Default
+from pylearn2.costs.mlp import FusedLasso
 from pylearn2.expr.probabilistic_max_pooling import max_pool_channels
 # Try to import the fast cudnn library, else fallback to conv2d
 if cuda_enabled and dnn_available():
@@ -1538,7 +1538,7 @@ class Softmax(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W = self.W
-        return coeff * abs(T.extra_ops.diff(W)).sum()
+        return coeff * abs(FusedLasso.diff_operator(W)).sum()
 
     @wraps(Layer._modify_updates)
     def _modify_updates(self, updates):
@@ -2136,7 +2136,7 @@ class Linear(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
-        return coeff * abs(T.extra_ops.diff(W)).sum()
+        return coeff * abs(FusedLasso.diff_operator(W)).sum()
 
     @wraps(Layer.get_weights)
     def get_weights(self):
@@ -3238,7 +3238,7 @@ class ConvElemwise(Layer):
             coeff = float(coeff)
         assert isinstance(coeff, float) or hasattr(coeff, 'dtype')
         W, = self.transformer.get_params()
-        return coeff * abs(T.extra_ops.diff(W)).sum()
+        return coeff * abs(FusedLasso.diff_operator(W)).sum()
 
     @wraps(Layer.set_weights)
     def set_weights(self, weights):
