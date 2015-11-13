@@ -233,7 +233,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
     """
 
     @staticmethod
-    def diff_operator(W):
+    def _diff_operator4D(W):
         import numpy as np
         nfilters, _, wrows, wcols = W.get_value().shape
 
@@ -259,6 +259,15 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         return theano.map(fn=fn,
                           sequences=W,
                           non_sequences=D)[0]
+
+    @staticmethod
+    def diff_operator(W):
+        ndim = len(W.get_value().shape)
+        if ndim == 4:
+            return FusedLasso._diff_operator4D(W)
+        else:
+            raise NotImplementedError(
+                "Diff operator not implemented for ndim = {0}".format(ndim))
 
     def __init__(self, coeffs):
         self.__dict__.update(locals())
