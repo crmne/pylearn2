@@ -238,12 +238,12 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         nfilters, _, wrows, wcols = W.get_value().shape
 
         # construct finite difference matrix
-        D_firstcol = np.zeros(wcols)
-        D_firstcol[0] = -1
+        D_firstcol = np.zeros(wcols, dtype=theano.config.floatX)
+        D_firstcol[0] = -1.
 
-        D_firstrow = np.zeros(wrows)
-        D_firstrow[0] = -1
-        D_firstrow[1] = 1
+        D_firstrow = np.zeros(wrows, dtype=theano.config.floatX)
+        D_firstrow[0] = -1.
+        D_firstrow[1] = 1.
 
         import scipy.linalg
         D = scipy.linalg.toeplitz(D_firstcol, D_firstrow)[:, 1:wcols]
