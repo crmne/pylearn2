@@ -243,7 +243,8 @@ class FusedLasso(NullDataSpecsMixin, Cost):
 
         D_firstrow = np.zeros(wrows, dtype=theano.config.floatX)
         D_firstrow[0] = -1.
-        D_firstrow[1] = 1.
+        if wrows > 1:
+            D_firstrow[1] = 1.
 
         import scipy.linalg
         D = scipy.linalg.toeplitz(D_firstcol, D_firstrow)[:, 1:wcols]
