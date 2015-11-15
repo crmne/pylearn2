@@ -236,6 +236,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
     def _diff_operator4D(W):
         import numpy as np
         nfilters, _, wrows, wcols = W.get_value().shape
+        assert wrows > 1 and wcols > 0
 
         # construct finite difference matrix
         D_firstcol = np.zeros(wcols, dtype=theano.config.floatX)
@@ -243,8 +244,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
 
         D_firstrow = np.zeros(wrows, dtype=theano.config.floatX)
         D_firstrow[0] = -1.
-        if wrows > 1:
-            D_firstrow[1] = 1.
+        D_firstrow[1] = 1.
 
         import scipy.linalg
         D = scipy.linalg.toeplitz(D_firstcol, D_firstrow)[:, 1:wcols]
