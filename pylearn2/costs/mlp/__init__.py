@@ -233,19 +233,26 @@ class FusedLasso(NullDataSpecsMixin, Cost):
     """
 
     @staticmethod
-    def _diff_operator4D(W):
-        import numpy as np
-        nfilters, _, wrows, wcols = W.get_value().shape
-        assert wrows > 1 and wcols > 0
+    def _diff_operator4D(W, axis=-1):
+        _, _, wrows, wcols = W.get_value().shape
 
-        def construct_d(shape):
+        def construct_d(dim):
+            """Costructs the finite difference matrix.
+
+            Params:
+                dim: the output dimension, in rows
+
+            Output:
+                the finite difference matrix, with shape = (dim, dim-1)
+            """
             import scipy.linalg
-            firstcol = np.zeros(shape[1], dtype=theano.config.floatX)
-            firstcol[0] = 1.
-            firstrow = np.zeros(shape[0], dtype=theano.config.floatX)
-            firstrow[0] = 1.
-            firstrow[1] = -1.
-            return scipy.linalg.toeplitz(firstcol, firstrow)[:, 1:shape[1]]
+            import numpy as np
+            firstcol = np.zeros(dim, dtype=theano.config.floatX)
+            firstcol[0] = -1.
+            firstcol[1] = 1.
+            firstrow = np.zeros(dim, dtype=theano.config.floatX)
+            firstrow[0] = -1.
+            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim-1]
 
         def fn(Wt, D):
             """The function to be passed to theano.map.
@@ -253,11 +260,18 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             The order of the parameters is fixed by scan: the output of the
             prior call to fn (or the initial value, initially) is the first
             parameter, followed by all non-sequences."""
-            return T.neg(T.dot(Wt[0], D).reshape((1, wrows, wcols - 1)))
+            if axis == -1 or axis == 1:
+                m = T.dot(Wt[0], D)
+            elif axis == 0:
+                m = T.dot(Wt[0].T, D).T
+            return m.reshape((1,) + m.shape)
 
-        return theano.map(fn=fn,
-                          sequences=W,
-                          non_sequences=construct_d((wrows, wcols)))[0]
+        wshape = (wrows, wcols)
+        D = construct_d(wshape[axis])
+        results, _ = theano.map(fn=fn,
+                                sequences=W,
+                                non_sequences=D)
+        return results
 
     @staticmethod
     def diff_operator(W):
@@ -266,7 +280,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             return FusedLasso._diff_operator4D(W)
         else:
             raise NotImplementedError(
-                "Diff operator not implemented for ndim = {0}".format(ndim))
+                "Diff operator not implemented for ndim={0}".format(ndim))
 
     def __init__(self, coeffs):
         self.__dict__.update(locals())
