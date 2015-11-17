@@ -233,7 +233,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
     """
 
     @staticmethod
-    def _diff_operator4D(W, axis=-1):
+    def _diff_operator4D(W, axis):
         _, _, wrows, wcols = W.get_value().shape
 
         def construct_d(dim):
@@ -261,10 +261,9 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             prior call to fn (or the initial value, initially) is the first
             parameter, followed by all non-sequences."""
             if axis == -1 or axis == 1:
-                m = T.dot(Wt[0], D)
+                return T.dot(Wt[0], D).reshape((1, wrows, wcols - 1))
             elif axis == 0:
-                m = T.dot(Wt[0].T, D).T
-            return m.reshape((1,) + m.shape)
+                return T.dot(Wt[0].T, D).T.reshape((1, wrows - 1, wcols))
 
         wshape = (wrows, wcols)
         D = construct_d(wshape[axis])
@@ -274,15 +273,15 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         return results
 
     @staticmethod
-    def diff_operator(W):
+    def diff_operator(W, axis):
         ndim = len(W.get_value().shape)
         if ndim == 4:
-            return FusedLasso._diff_operator4D(W)
+            return FusedLasso._diff_operator4D(W, axis)
         else:
             raise NotImplementedError(
                 "Diff operator not implemented for ndim={0}".format(ndim))
 
-    def __init__(self, coeffs):
+    def __init__(self, coeffs, axes):
         self.__dict__.update(locals())
         del self.self
 
@@ -306,24 +305,14 @@ class FusedLasso(NullDataSpecsMixin, Cost):
 
         assert T.scalar() != 0.  # make sure theano semantics do what I want
         self.get_data_specs(model)[0].validate(data)
-        if isinstance(self.coeffs, list):
-            warnings.warn("Coefficients should be given as a dictionary "
-                          "with layer names as key. The support of "
-                          "coefficients as list would be deprecated "
-                          "from 03/06/2015")
-            layer_costs = [layer.get_fused_lasso(coeff)
-                           for layer, coeff in safe_izip(model.layers,
-                                                         self.coeffs)]
-            layer_costs = [cost for cost in layer_costs if cost != 0.]
-
-        else:
-            layer_costs = []
-            for layer in model.layers:
-                layer_name = layer.layer_name
-                if layer_name in self.coeffs:
-                    cost = layer.get_fused_lasso(self.coeffs[layer_name])
-                    if cost != 0.:
-                        layer_costs.append(cost)
+        layer_costs = []
+        for layer in model.layers:
+            layer_name = layer.layer_name
+            if layer_name in self.coeffs:
+                cost = layer.get_fused_lasso(self.coeffs[layer_name],
+                                             self.axes[layer_name])
+                if cost != 0.:
+                    layer_costs.append(cost)
 
         if len(layer_costs) == 0:
             rval = T.constant(0., dtype=theano.config.floatX)
