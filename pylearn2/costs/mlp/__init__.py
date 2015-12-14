@@ -273,10 +273,50 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         return results
 
     @staticmethod
+    def _diff_operator2D(W, axis):
+        wrows, wcols = W.get_value().shape
+
+        def construct_d(dim):
+            """Costructs the finite difference matrix.
+
+            Params:
+                dim: the output dimension, in rows
+
+            Output:
+                the finite difference matrix, with shape = (dim, dim-1)
+            """
+            import scipy.linalg
+            import numpy as np
+            firstcol = np.zeros(dim, dtype=theano.config.floatX)
+            firstcol[0] = -1.
+            firstcol[1] = 1.
+            firstrow = np.zeros(dim, dtype=theano.config.floatX)
+            firstrow[0] = -1.
+            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim-1]
+
+        def fn(Wt, D):
+            """The function to be passed to theano.map.
+
+            The order of the parameters is fixed by scan: the output of the
+            prior call to fn (or the initial value, initially) is the first
+            parameter, followed by all non-sequences."""
+            if axis == -1 or axis == 1:
+                return T.dot(Wt, D).reshape((wrows, wcols - 1))
+            elif axis == 0:
+                return T.dot(Wt.T, D).T.reshape((wrows - 1, wcols))
+
+        wshape = (wrows, wcols)
+        D = construct_d(wshape[axis])
+        return fn(W, D)
+
+
+    @staticmethod
     def diff_operator(W, axis):
         ndim = len(W.get_value().shape)
         if ndim == 4:
             return FusedLasso._diff_operator4D(W, axis)
+        elif ndim == 2:
+            return FusedLasso._diff_operator2D(W, axis)
         else:
             raise NotImplementedError(
                 "Diff operator not implemented for ndim={0}".format(ndim))
