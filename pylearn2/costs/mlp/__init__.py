@@ -70,7 +70,7 @@ class WeightDecay(NullDataSpecsMixin, Cost):
         self.__dict__.update(locals())
         del self.self
 
-    def expr(self, model, data, ** kwargs):
+    def expr(self, model, data, **kwargs):
         """Returns a theano expression for the cost function.
 
         Parameters
@@ -97,8 +97,8 @@ class WeightDecay(NullDataSpecsMixin, Cost):
                 if coeff == 0.:
                     return 0.
                 else:
-                    reraise_as(NotImplementedError(str(type(layer)) +
-                                                   " does not implement "
+                    reraise_as(NotImplementedError(str(type(
+                        layer)) + " does not implement "
                                                    "get_weight_decay."))
 
         if isinstance(self.coeffs, list):
@@ -106,9 +106,10 @@ class WeightDecay(NullDataSpecsMixin, Cost):
                           "with layer names as key. The support of "
                           "coefficients as list would be deprecated from "
                           "03/06/2015")
-            layer_costs = [wrapped_layer_cost(layer, coeff)
-                           for layer, coeff in safe_izip(model.layers,
-                                                         self.coeffs)]
+            layer_costs = [
+                wrapped_layer_cost(layer, coeff)
+                for layer, coeff in safe_izip(model.layers, self.coeffs)
+            ]
             layer_costs = [cost for cost in layer_costs if cost != 0.]
         else:
             layer_costs = []
@@ -158,7 +159,7 @@ class L1WeightDecay(NullDataSpecsMixin, Cost):
         self.__dict__.update(locals())
         del self.self
 
-    def expr(self, model, data, ** kwargs):
+    def expr(self, model, data, **kwargs):
         """Returns a theano expression for the cost function.
 
         Parameters
@@ -183,9 +184,10 @@ class L1WeightDecay(NullDataSpecsMixin, Cost):
                           "with layer names as key. The support of "
                           "coefficients as list would be deprecated "
                           "from 03/06/2015")
-            layer_costs = [layer.get_l1_weight_decay(coeff)
-                           for layer, coeff in safe_izip(model.layers,
-                                                         self.coeffs)]
+            layer_costs = [
+                layer.get_l1_weight_decay(coeff)
+                for layer, coeff in safe_izip(model.layers, self.coeffs)
+            ]
             layer_costs = [cost for cost in layer_costs if cost != 0.]
 
         else:
@@ -252,7 +254,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             firstcol[1] = 1.
             firstrow = np.zeros(dim, dtype=theano.config.floatX)
             firstrow[0] = -1.
-            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim-1]
+            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim - 1]
 
         def fn(Wt, D):
             """The function to be passed to theano.map.
@@ -267,14 +269,23 @@ class FusedLasso(NullDataSpecsMixin, Cost):
 
         wshape = (wrows, wcols)
         D = construct_d(wshape[axis])
-        results, _ = theano.map(fn=fn,
-                                sequences=W,
-                                non_sequences=D)
+        results, _ = theano.map(fn=fn, sequences=W, non_sequences=D)
         return results
 
     @staticmethod
     def _diff_operator2D(W, axis):
         wrows, wcols = W.get_value().shape
+        if wrows == 784 and wcols == 10:
+            # MNIST
+            wrows = wcols = 28
+            outputs = 10
+        elif (wrows % 513) == 0 and wcols == 10:
+            # GTZAN
+            wcols = wrows / 513
+            wrows = 513
+            outputs = 10
+        else:
+            raise NotImplementedError('Diff operator not implemented for this dataset.')
 
         def construct_d(dim):
             """Costructs the finite difference matrix.
@@ -292,7 +303,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             firstcol[1] = 1.
             firstrow = np.zeros(dim, dtype=theano.config.floatX)
             firstrow[0] = -1.
-            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim-1]
+            return scipy.linalg.toeplitz(firstcol, firstrow)[:, :dim - 1]
 
         def fn(Wt, D):
             """The function to be passed to theano.map.
@@ -300,15 +311,16 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             The order of the parameters is fixed by scan: the output of the
             prior call to fn (or the initial value, initially) is the first
             parameter, followed by all non-sequences."""
+            Wt = Wt.reshape((wrows, wcols))
             if axis == -1 or axis == 1:
-                return T.dot(Wt, D).reshape((wrows, wcols - 1))
+                return T.dot(Wt, D).reshape((wrows * (wcols - 1), ))
             elif axis == 0:
-                return T.dot(Wt.T, D).T.reshape((wrows - 1, wcols))
+                return T.dot(Wt.T, D).T.reshape(((wrows - 1) * wcols, ))
 
         wshape = (wrows, wcols)
         D = construct_d(wshape[axis])
-        return fn(W, D)
-
+        results, _ = theano.map(fn=fn, sequences=W.T, non_sequences=D)
+        return results.T
 
     @staticmethod
     def diff_operator(W, axis):
@@ -325,7 +337,7 @@ class FusedLasso(NullDataSpecsMixin, Cost):
         self.__dict__.update(locals())
         del self.self
 
-    def expr(self, model, data, ** kwargs):
+    def expr(self, model, data, **kwargs):
         """Returns a theano expression for the cost function.
 
         Parameters
