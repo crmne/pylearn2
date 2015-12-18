@@ -261,9 +261,9 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             prior call to fn (or the initial value, initially) is the first
             parameter, followed by all non-sequences."""
             if axis == -1 or axis == 1:
-                return T.dot(Wt[0], D).reshape((1, wrows, wcols - 1))
+                return T.dot(Wt[0], D).dimshuffle('x', 0, 1)
             elif axis == 0:
-                return T.dot(D, Wt[0]).reshape((1, wrows - 1, wcols))
+                return T.dot(D, Wt[0]).dimshuffle('x', 0, 1)
 
         results, _ = theano.map(fn=fn, sequences=W)
         return results
@@ -296,9 +296,9 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             parameter, followed by all non-sequences."""
             Wt = Wt.reshape(wshape)
             if axis == -1 or axis == 1:
-                return T.dot(Wt, D).reshape((wrows * (wcols - 1), ))
+                return T.dot(Wt, D).flatten()
             elif axis == 0:
-                return T.dot(D, Wt).reshape(((wrows - 1) * wcols, ))
+                return T.dot(D, Wt).flatten()
             else:
                 raise NotImplementedError
 
