@@ -283,7 +283,8 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             outputs = 10
         else:
             raise NotImplementedError(
-                'Diff operator not implemented for this dataset.')
+                'Diff operator not implemented for this dataset of shape ' +
+                str(W.get_value().shape))
 
         wshape = (wrows, wcols)
         D = FusedLasso._make_d(wshape[axis], axis=axis)
