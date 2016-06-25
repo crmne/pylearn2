@@ -261,9 +261,9 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             prior call to fn (or the initial value, initially) is the first
             parameter, followed by all non-sequences."""
             if axis == -1 or axis == 1:
-                return abs(T.dot(Wt[0], D)).dimshuffle('x', 0, 1)
+                return T.dot(Wt[0], D).dimshuffle('x', 0, 1)
             elif axis == 0:
-                return abs(T.dot(D, Wt[0])).dimshuffle('x', 0, 1)
+                return T.dot(D, Wt[0]).dimshuffle('x', 0, 1)
 
         results, _ = theano.map(fn=fn, sequences=W)
         return results
@@ -272,15 +272,17 @@ class FusedLasso(NullDataSpecsMixin, Cost):
     def _diff_operator2D(W, axis):
         wrows, wcols = W.get_value().shape
 
-        if wrows == 784 and wcols == 10:
-            # MNIST
-            wrows = wcols = 28
-            outputs = 10
-        elif (wrows % 513) == 0 and wcols == 10:
+        if (wrows % 513) == 0 and wcols == 10:
             # GTZAN
             wcols = wrows / 513
             wrows = 513
             outputs = 10
+        elif (wrows % 513) != 0:
+            # assuming wrows is the size of the input layer,
+            # and wcols is the size of the output layer
+            # like in MNIST
+            import math
+            wrows = wcols = int(math.sqrt(wrows))
         else:
             raise NotImplementedError(
                 'Diff operator not implemented for this dataset of shape ' +
@@ -297,13 +299,13 @@ class FusedLasso(NullDataSpecsMixin, Cost):
             parameter, followed by all non-sequences."""
             Wt = Wt.reshape(wshape)
             if axis == -1 or axis == 1:
-                return abs(T.dot(Wt, D)).flatten()
+                return T.dot(Wt, D).flatten()
             elif axis == 0:
-                return abs(T.dot(D, Wt)).flatten()
+                return T.dot(D, Wt).flatten()
             else:
                 raise NotImplementedError
 
-        results, _ = theano.map(fn=fn, sequences=W, non_sequences=None)
+        results, _ = theano.map(fn=fn, sequences=W.T, non_sequences=None)
         return results.T
 
     @staticmethod
