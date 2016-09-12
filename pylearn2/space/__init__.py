@@ -35,7 +35,8 @@ __email__ = "pylearn-dev@googlegroups"
 import functools
 import warnings
 import numpy as np
-from theano.compat.six.moves import xrange
+# from theano.compat.six.moves import xrange
+from six.moves import xrange
 import theano
 import theano.sparse
 from theano import tensor

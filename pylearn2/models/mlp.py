@@ -14,7 +14,8 @@ import sys
 import warnings
 
 import numpy as np
-from theano.compat.six.moves import reduce, xrange
+# from theano.compat.six.moves import reduce, xrange
+from six.moves import reduce, xrange
 from theano import config
 from theano.gof.op import get_debug_values
 from theano.sandbox.cuda import cuda_enabled

@@ -10,7 +10,8 @@ import logging
 import warnings
 import re
 
-from theano.compat import six
+# from theano.compat import six
+import six
 
 SCIENTIFIC_NOTATION_REGEXP = r'^[\-\+]?(\d+\.?\d*|\d*\.?\d+)?[eE][\-\+]?\d+$'
 

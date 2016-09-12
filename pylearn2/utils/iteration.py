@@ -19,7 +19,8 @@ from __future__ import division
 
 import warnings
 import numpy as np
-from theano.compat import six
+# from theano.compat import six
+import six
 
 from pylearn2.space import CompositeSpace
 from pylearn2.utils import safe_izip, wraps

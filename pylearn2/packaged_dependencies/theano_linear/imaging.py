@@ -6,7 +6,8 @@
 import logging
 import sys
 import numpy
-from theano.compat.six.moves import xrange
+# from theano.compat.six.moves import xrange
+from six.moves import xrange
 from pylearn2.utils.image import Image, ensure_Image
 
 

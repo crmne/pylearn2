@@ -8,8 +8,10 @@ except ImportError:
 import pickle
 import logging
 import numpy as np
-from theano.compat import six
-from theano.compat.six.moves import cPickle, xrange
+# from theano.compat import six
+import six
+# from theano.compat.six.moves import cPickle, xrange
+from six.moves import cPickle, xrange
 import os
 import time
 import warnings

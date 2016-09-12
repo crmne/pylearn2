@@ -6,7 +6,8 @@
 import numpy
 import theano
 from theano import tensor
-from theano.compat.six.moves import reduce
+# from theano.compat.six.moves import reduce
+from six.moves import reduce
 
 from pylearn2.utils import py_integer_types
 

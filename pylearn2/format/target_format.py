@@ -2,7 +2,8 @@
 from operator import mul
 
 import numpy as np
-from theano.compat.six.moves import reduce
+# from theano.compat.six.moves import reduce
+from six.moves import reduce
 import theano.sparse
 if theano.sparse.enable_sparse:
     scipy_available = True

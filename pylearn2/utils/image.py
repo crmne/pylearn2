@@ -5,8 +5,10 @@ import logging
 import numpy as np
 plt = None
 axes = None
-from theano.compat.six.moves import xrange
-from theano.compat.six import string_types
+# from theano.compat.six.moves import xrange
+from six.moves import xrange
+# from theano.compat.six import string_types
+from six import string_types
 import warnings
 try:
     import matplotlib.pyplot as plt

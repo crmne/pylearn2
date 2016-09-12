@@ -30,7 +30,8 @@ import subprocess
 import sys
 import warnings
 
-from theano.compat import six
+# from theano.compat import six
+import six
 
 logger = logging.getLogger(__name__)
 
